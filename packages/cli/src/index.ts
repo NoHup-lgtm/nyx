@@ -4,7 +4,9 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { banner } from "./banner.js";
 import { chatCommand, type ChatFlags } from "./commands/chat.js";
+import { runCommand, type RunFlags } from "./commands/run.js";
 import { providersCommand } from "./commands/providers.js";
+import { toolsCommand } from "./commands/tools.js";
 import { configSet, configShow } from "./commands/config.js";
 
 // Carrega um .env do diretório atual, se existir (sem dependência externa).
@@ -36,6 +38,27 @@ program
   .option("-t, --temperature <n>", "temperatura de amostragem")
   .option("--no-stream", "desativa o streaming de resposta")
   .action((prompt: string | undefined, flags: ChatFlags) => chatCommand(prompt, flags));
+
+program
+  .command("run")
+  .description("Executa uma tarefa de forma autônoma, usando ferramentas (shell, arquivos, rede).")
+  .argument("<task>", "descrição da tarefa a executar")
+  .option("-p, --provider <id>", "provider a usar")
+  .option("-m, --model <model>", "modelo específico")
+  .option("-k, --api-key <key>", "chave de API explícita")
+  .option("-b, --base-url <url>", "endpoint custom")
+  .option("-t, --temperature <n>", "temperatura de amostragem")
+  .option("--max-steps <n>", "máximo de passos do loop (padrão 12)")
+  .option("--cwd <dir>", "diretório de trabalho para as tools")
+  .option("-y, --yes", "aprova automaticamente as tools em modo 'ask' (respeita 'deny')")
+  .option("--allow <tools>", "libera tools (nomes separados por vírgula, ou 'all')")
+  .option("--deny <tools>", "bloqueia tools (nomes separados por vírgula, ou 'all')")
+  .action((task: string, flags: RunFlags) => runCommand(task, flags));
+
+program
+  .command("tools")
+  .description("Lista as ferramentas disponíveis e a permissão atual de cada uma.")
+  .action(() => toolsCommand());
 
 program
   .command("providers")

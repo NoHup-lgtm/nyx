@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { PROVIDER_SPECS } from "../providers/registry.js";
+import type { PermissionPolicy } from "../tools/permissions.js";
 
 export interface NyxConfig {
   /** Provider padrão quando não passado via flag. */
@@ -12,6 +13,8 @@ export interface NyxConfig {
   systemPrompt?: string;
   /** Overrides por provider (baseUrl custom, etc.). */
   providers?: Record<string, { baseUrl?: string }>;
+  /** Política de permissões das tools (mesclada com os padrões seguros). */
+  permissions?: Partial<PermissionPolicy>;
 }
 
 export const CONFIG_DIR = join(homedir(), ".nyx");

@@ -11,11 +11,14 @@ Ordem sugerida. Cada fase entrega algo usável de ponta a ponta.
 - [x] Config em `~/.nyx/config.json` + carregamento de `.env`
 - [x] Identidade visual (logo, paleta, banner)
 
-## Fase 1 — Agente de verdade
-- [ ] Abstração de **tools / function-calling** unificada entre providers
-- [ ] Loop autônomo (planejar → agir → observar → repetir) com limite de passos
-- [ ] Tools base: shell, filesystem, HTTP fetch, busca web
-- [ ] Sistema de permissões/allowlist por tool (importante para o público de segurança)
+## Fase 1 — Agente de verdade 🚧 (em andamento)
+- [x] Abstração de **tools / function-calling** unificada entre providers (OpenAI + Anthropic)
+- [x] Loop autônomo (planejar → agir → observar → repetir) com limite de passos (`runTask`)
+- [x] Tools base: shell, read_file, write_file, list_dir, http_fetch
+- [x] Sistema de permissões/allowlist por tool (allow/ask/deny) — `nyx tools`, flags `--allow/--deny/--yes`
+- [x] CLI: `nyx run <tarefa>` (autônomo) e `nyx tools`
+- [ ] Tool de busca web
+- [ ] Streaming da resposta final durante o loop
 - [ ] Sessões e memória persistente
 
 ## Fase 2 — Multi-superfície

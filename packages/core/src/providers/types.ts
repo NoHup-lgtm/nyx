@@ -1,16 +1,36 @@
 /** Papel de uma mensagem numa conversa. */
 export type Role = "system" | "user" | "assistant" | "tool";
 
+/** Um pedido do modelo para executar uma ferramenta. */
+export interface ToolCall {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+}
+
 export interface Message {
   role: Role;
   content: string;
-  /** Nome opcional (ex.: nome da ferramenta em mensagens `tool`). */
+  /** Presente em mensagens 'assistant' que pediram execução de ferramentas. */
+  toolCalls?: ToolCall[];
+  /** Presente em mensagens 'tool' (resultado); referencia o `ToolCall.id`. */
+  toolCallId?: string;
+  /** Nome opcional (ex.: nome da ferramenta em mensagens 'tool'). */
   name?: string;
+}
+
+/** Descrição de uma ferramenta enviada ao modelo (JSON Schema dos parâmetros). */
+export interface ToolSchema {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
 }
 
 export interface ChatOptions {
   model: string;
   messages: Message[];
+  /** Ferramentas disponíveis nesta chamada (function-calling). */
+  tools?: ToolSchema[];
   temperature?: number;
   maxTokens?: number;
   /** Aborta a requisição (ex.: Ctrl+C no CLI). */
@@ -23,9 +43,14 @@ export interface Usage {
   totalTokens?: number;
 }
 
+export type FinishReason = "stop" | "tool_calls" | "length" | "unknown";
+
 export interface ChatResult {
   content: string;
   model: string;
+  /** Ferramentas que o modelo pediu para executar, se houver. */
+  toolCalls?: ToolCall[];
+  finishReason: FinishReason;
   usage?: Usage;
 }
 

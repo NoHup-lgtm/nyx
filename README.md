@@ -53,6 +53,27 @@ npm run dev -- config set defaultProvider openrouter
 npm run dev -- config set defaultModel "openai/gpt-4o-mini"
 ```
 
+### Modo autônomo (agente com ferramentas)
+
+O Nyx pode executar tarefas sozinho usando ferramentas (`shell`, `read_file`,
+`write_file`, `list_dir`, `http_fetch`) dentro de um loop — sempre respeitando um
+**sistema de permissões por ferramenta**:
+
+```bash
+# lista as tools e a permissão atual de cada uma
+npm run dev -- tools
+
+# executa uma tarefa de forma autônoma (pede confirmação p/ shell e escrita)
+npm run dev -- run "verifique o git status e resuma o que mudou"
+
+# controle fino de permissões (ideal p/ pentest):
+npm run dev -- run "faça um recon básico em example.com" --allow http_fetch --deny shell
+npm run dev -- run "organize esta pasta" --yes        # aprova tudo em modo 'ask'
+```
+
+Permissões padrão (seguras): leitura e rede liberadas; `shell` e `write_file`
+pedem confirmação. Ajuste em `~/.nyx/config.json` (campo `permissions`) ou por flag.
+
 Depois de `npm run build`, o binário `nyx` fica disponível (`npm link` ou instalação global).
 
 ## Chaves de API

@@ -2,8 +2,11 @@ import {
   type ChatChunk,
   type ChatOptions,
   type ChatResult,
+  type FinishReason,
+  type Message,
   type Provider,
   ProviderError,
+  type ToolCall,
 } from "./types.js";
 import { parseSSE } from "./sse.js";
 
@@ -14,6 +17,41 @@ export interface OpenAICompatibleConfig {
   apiKey: string;
   /** Cabeçalhos extras (ex.: OpenRouter recomenda HTTP-Referer / X-Title). */
   headers?: Record<string, string>;
+}
+
+/** Converte nossas mensagens normalizadas para o formato da OpenAI. */
+function toOpenAIMessages(messages: Message[]): unknown[] {
+  return messages.map((m) => {
+    if (m.role === "assistant" && m.toolCalls?.length) {
+      return {
+        role: "assistant",
+        content: m.content || null,
+        tool_calls: m.toolCalls.map((tc) => ({
+          id: tc.id,
+          type: "function",
+          function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
+        })),
+      };
+    }
+    if (m.role === "tool") {
+      return { role: "tool", tool_call_id: m.toolCallId, content: m.content };
+    }
+    return { role: m.role, content: m.content, name: m.name };
+  });
+}
+
+function mapFinishReason(reason: string | undefined): FinishReason {
+  switch (reason) {
+    case "stop":
+      return "stop";
+    case "tool_calls":
+    case "function_call":
+      return "tool_calls";
+    case "length":
+      return "length";
+    default:
+      return "unknown";
+  }
 }
 
 /**
@@ -37,6 +75,20 @@ export class OpenAICompatibleProvider implements Provider {
   }
 
   private async post(opts: ChatOptions, stream: boolean): Promise<Response> {
+    const body: Record<string, unknown> = {
+      model: opts.model,
+      messages: toOpenAIMessages(opts.messages),
+      temperature: opts.temperature,
+      max_tokens: opts.maxTokens,
+      stream,
+    };
+    if (opts.tools?.length) {
+      body.tools = opts.tools.map((t) => ({
+        type: "function",
+        function: { name: t.name, description: t.description, parameters: t.parameters },
+      }));
+    }
+
     const res = await fetch(`${this.baseUrl}/chat/completions`, {
       method: "POST",
       signal: opts.signal,
@@ -45,13 +97,7 @@ export class OpenAICompatibleProvider implements Provider {
         Authorization: `Bearer ${this.apiKey}`,
         ...this.extraHeaders,
       },
-      body: JSON.stringify({
-        model: opts.model,
-        messages: opts.messages.map((m) => ({ role: m.role, content: m.content, name: m.name })),
-        temperature: opts.temperature,
-        max_tokens: opts.maxTokens,
-        stream,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
@@ -68,9 +114,23 @@ export class OpenAICompatibleProvider implements Provider {
   async chat(opts: ChatOptions): Promise<ChatResult> {
     const res = await this.post(opts, false);
     const json = (await res.json()) as any;
+    const choice = json.choices?.[0];
+    const rawCalls = choice?.message?.tool_calls;
+
+    let toolCalls: ToolCall[] | undefined;
+    if (Array.isArray(rawCalls) && rawCalls.length) {
+      toolCalls = rawCalls.map((tc: any) => ({
+        id: tc.id,
+        name: tc.function?.name ?? "",
+        arguments: safeParseArgs(tc.function?.arguments),
+      }));
+    }
+
     return {
-      content: json.choices?.[0]?.message?.content ?? "",
+      content: choice?.message?.content ?? "",
       model: json.model ?? opts.model,
+      toolCalls,
+      finishReason: mapFinishReason(choice?.finish_reason),
       usage: json.usage
         ? {
             promptTokens: json.usage.prompt_tokens,
@@ -94,5 +154,14 @@ export class OpenAICompatibleProvider implements Provider {
       if (delta) yield { delta, done: false };
     }
     yield { delta: "", done: true };
+  }
+}
+
+function safeParseArgs(raw: unknown): Record<string, unknown> {
+  if (typeof raw !== "string") return (raw as Record<string, unknown>) ?? {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
   }
 }
