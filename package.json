@@ -1,0 +1,26 @@
+{
+  "name": "nyx",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nyx — agente de IA autônomo, open-source e provider-agnostic (CLI, desktop, mobile e bots).",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "nyx": "tsc -b packages/core && node --import tsx packages/cli/src/index.ts",
+    "dev": "tsc -b packages/core && node --import tsx packages/cli/src/index.ts",
+    "start": "node packages/cli/dist/index.js",
+    "typecheck": "tsc -b"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
