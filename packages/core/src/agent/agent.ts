@@ -34,6 +34,17 @@ export class Agent {
     }
   }
 
+  /** Cópia do histórico atual (para transferir entre agentes). */
+  snapshot(): Message[] {
+    return [...this.history];
+  }
+
+  /** Substitui o histórico (ex.: ao trocar de modelo/provider mantendo a conversa). */
+  restore(messages: Message[]): void {
+    this.history.length = 0;
+    this.history.push(...messages);
+  }
+
   /** Envia uma mensagem do usuário e retorna a resposta completa. */
   async send(input: string, signal?: AbortSignal): Promise<string> {
     this.history.push({ role: "user", content: input });

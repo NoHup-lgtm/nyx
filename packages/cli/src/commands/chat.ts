@@ -1,7 +1,20 @@
-import { createInterface } from "node:readline/promises";
+import { createInterface, type Interface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
-import { Agent, createProvider, loadConfig, resolveModel, keyFromConfig, ProviderError } from "@nyx/core";
-import { banner, c } from "../banner.js";
+import {
+  Agent,
+  PROVIDER_SPECS,
+  ProviderError,
+  createProvider,
+  keyFromConfig,
+  loadConfig,
+  resolveModel,
+  resolvePolicy,
+  type Message,
+  type Provider,
+} from "@nyx/core";
+import { banner, statusLine, c } from "../banner.js";
+import { buildPermissions, runAgentTask } from "./run.js";
+import { toolsCommand } from "./tools.js";
 
 export interface ChatFlags {
   provider?: string;
@@ -13,21 +26,33 @@ export interface ChatFlags {
   stream?: boolean;
 }
 
-function buildAgent(flags: ChatFlags): { agent: Agent; providerId: string; model: string } {
+interface Ctx {
+  agent: Agent;
+  provider: Provider;
+  providerId: string;
+  model: string;
+}
+
+function makeCtx(
+  providerId: string,
+  modelOverride: string | undefined,
+  flags: ChatFlags,
+  history?: Message[],
+): Ctx {
   const cfg = loadConfig();
-  const providerId = flags.provider ?? cfg.defaultProvider;
   const provider = createProvider(providerId, {
     apiKey: flags.apiKey ?? keyFromConfig(cfg, providerId),
     baseUrl: flags.baseUrl,
   });
-  const model = resolveModel(cfg, providerId, flags.model);
+  const model = modelOverride ?? resolveModel(cfg, providerId, flags.model);
   const agent = new Agent({
     provider,
     model,
     systemPrompt: flags.system ?? cfg.systemPrompt,
     temperature: flags.temperature ? Number(flags.temperature) : undefined,
   });
-  return { agent, providerId, model };
+  if (history) agent.restore(history);
+  return { agent, provider, providerId, model };
 }
 
 async function streamReply(agent: Agent, input: string, useStream: boolean): Promise<void> {
@@ -37,19 +62,59 @@ async function streamReply(agent: Agent, input: string, useStream: boolean): Pro
     }
     stdout.write("\n");
   } else {
-    const reply = await agent.send(input);
-    console.log(reply);
+    console.log(await agent.send(input));
+  }
+}
+
+const HELP = [
+  ["/help", "mostra esta ajuda"],
+  ["/info", "provider e modelo atuais (a fonte da verdade)"],
+  ["/models [filtro]", "lista os modelos do provider (sem sair)"],
+  ["/model <id>", "troca o modelo mantendo a conversa"],
+  ["/provider <id> [modelo]", "troca de provider mantendo a conversa"],
+  ["/run <tarefa>", "executa uma tarefa autônoma com ferramentas"],
+  ["/tools", "lista as ferramentas e permissões"],
+  ["/reset", "limpa o contexto da conversa"],
+  ["/clear", "limpa a tela"],
+  ["/sair", "encerra"],
+];
+
+function printHelp(): void {
+  console.log(c.bold("Comandos:"));
+  for (const [cmd, desc] of HELP) {
+    console.log("  " + c.cyan((cmd as string).padEnd(26)) + c.dim(desc as string));
+  }
+  console.log("");
+}
+
+async function listModels(ctx: Ctx, filter: string): Promise<void> {
+  if (!ctx.provider.listModels) {
+    console.log(c.dim(`O provider ${ctx.providerId} não expõe listagem de modelos.\n`));
+    return;
+  }
+  try {
+    let models = await ctx.provider.listModels();
+    if (filter) models = models.filter((m) => m.toLowerCase().includes(filter.toLowerCase()));
+    if (!models.length) {
+      console.log(c.dim(`Nenhum modelo${filter ? ` com "${filter}"` : ""}.\n`));
+      return;
+    }
+    console.log(c.bold(`Modelos em ${c.violet(ctx.providerId)}`) + c.dim(` (${models.length}):`));
+    for (const m of models) console.log("  " + c.cyan(m));
+    console.log(c.dim("troque com ") + c.cyan("/model <id>") + "\n");
+  } catch (err) {
+    console.log(c.red(`✗ ${(err as Error).message}\n`));
   }
 }
 
 export async function chatCommand(prompt: string | undefined, flags: ChatFlags): Promise<void> {
-  let ctx: ReturnType<typeof buildAgent>;
+  let ctx: Ctx;
   try {
-    ctx = buildAgent(flags);
+    ctx = makeCtx(flags.provider ?? loadConfig().defaultProvider, undefined, flags);
   } catch (err) {
     if (err instanceof ProviderError) {
       console.error(c.red(`✗ ${err.message}`));
-      console.error(c.dim("  Veja os providers disponíveis com: nyx providers"));
+      console.error(c.dim("  Configure com: nyx setup"));
       process.exitCode = 1;
       return;
     }
@@ -71,32 +136,93 @@ export async function chatCommand(prompt: string | undefined, flags: ChatFlags):
 
   // Modo interativo (REPL).
   process.stdout.write(banner());
-  console.log(
-    c.dim(`provider `) + c.violet(ctx.providerId) + c.dim(`  ·  modelo `) + c.cyan(ctx.model),
-  );
-  console.log(
-    c.dim(`Digite sua mensagem. /info mostra provider+modelo, /reset limpa o contexto, /sair encerra.\n`),
-  );
+  console.log(statusLine(ctx.providerId, ctx.model));
+  console.log(c.dim("Digite ") + c.cyan("/help") + c.dim(" para os comandos, ou fale normalmente.\n"));
 
   const rl = createInterface({ input: stdin, output: stdout });
   try {
     while (true) {
       const input = (await rl.question(c.violet("você › "))).trim();
       if (!input) continue;
-      if (input === "/sair" || input === "/exit" || input === "/quit") break;
-      if (input === "/reset") {
-        ctx.agent.reset();
-        console.log(c.dim("contexto limpo.\n"));
+
+      if (input.startsWith("/")) {
+        const parts = input.slice(1).split(/\s+/);
+        const cmd = (parts[0] ?? "").toLowerCase();
+        const arg = parts.slice(1).join(" ").trim();
+
+        if (cmd === "sair" || cmd === "exit" || cmd === "quit") break;
+        if (cmd === "help" || cmd === "h" || cmd === "?") {
+          printHelp();
+        } else if (cmd === "info" || cmd === "status") {
+          console.log(
+            statusLine(ctx.providerId, ctx.model) +
+              c.dim("  (fonte da verdade — não pergunte ao modelo, ele chuta)\n"),
+          );
+        } else if (cmd === "reset") {
+          ctx.agent.reset();
+          console.log(c.dim("contexto limpo.\n"));
+        } else if (cmd === "clear") {
+          console.clear();
+        } else if (cmd === "tools") {
+          toolsCommand();
+          console.log("");
+        } else if (cmd === "models") {
+          await listModels(ctx, arg);
+        } else if (cmd === "model") {
+          if (!arg) {
+            console.log(c.dim(`modelo atual: ${c.cyan(ctx.model)} — use /model <id> para trocar\n`));
+          } else {
+            ctx = makeCtx(ctx.providerId, arg, flags, ctx.agent.snapshot());
+            console.log(c.green(`✓ modelo → ${ctx.model}`) + c.dim(" (conversa mantida)\n"));
+          }
+        } else if (cmd === "provider") {
+          const [pid, ...m] = arg.split(/\s+/);
+          const modelArg = m.join(" ").trim() || undefined;
+          const spec = pid ? PROVIDER_SPECS[pid] : undefined;
+          if (!pid || !spec) {
+            console.log(
+              c.red(`provider inválido. `) +
+                c.dim("disponíveis: " + Object.keys(PROVIDER_SPECS).join(", ") + "\n"),
+            );
+          } else {
+            const newModel = modelArg ?? spec.defaultModel;
+            try {
+              ctx = makeCtx(pid, newModel, flags, ctx.agent.snapshot());
+              console.log(
+                c.green(`✓ provider → ${ctx.providerId}`) +
+                  c.dim(`  ·  modelo ${ctx.model}  (conversa mantida)\n`),
+              );
+            } catch (err) {
+              console.log(
+                c.red(`✗ ${(err as Error).message}`) +
+                  c.dim(`\n  configure a chave com: nyx setup\n`),
+              );
+            }
+          }
+        } else if (cmd === "run") {
+          if (!arg) {
+            console.log(c.dim("uso: /run <descrição da tarefa>\n"));
+          } else {
+            const permissions = buildPermissions(resolvePolicy(loadConfig().permissions), { rl });
+            try {
+              await runAgentTask(arg, {
+                provider: ctx.provider,
+                model: ctx.model,
+                cwd: process.cwd(),
+                permissions,
+              });
+              console.log("");
+            } catch (err) {
+              console.log(c.red(`✗ ${(err as Error).message}\n`));
+            }
+          }
+        } else {
+          console.log(c.dim(`comando desconhecido: /${cmd} — use /help\n`));
+        }
         continue;
       }
-      if (input === "/info" || input === "/model") {
-        console.log(
-          c.dim("provider ") + c.violet(ctx.providerId) +
-            c.dim("  ·  modelo ") + c.cyan(ctx.model) +
-            c.dim("  (fonte da verdade — não pergunte ao modelo, ele chuta)\n"),
-        );
-        continue;
-      }
+
+      // Mensagem normal → conversa.
       stdout.write(c.cyan("nyx › "));
       try {
         await streamReply(ctx.agent, input, useStream);
