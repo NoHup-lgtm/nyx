@@ -2,6 +2,7 @@ import type { Message, Provider, ToolCall } from "../providers/types.js";
 import type { Tool } from "../tools/types.js";
 import { toToolSchema } from "../tools/types.js";
 import type { PermissionManager } from "../tools/permissions.js";
+import type { ScopeGuard } from "../tools/scope.js";
 
 export interface RunHooks {
   /** Texto que o modelo produziu num passo (antes de chamar tools ou no final). */
@@ -19,6 +20,8 @@ export interface RunOptions {
   model: string;
   tools: Tool[];
   permissions: PermissionManager;
+  /** Restringe as tools a alvos autorizados (opcional). */
+  scope?: ScopeGuard;
   cwd: string;
   systemPrompt?: string;
   temperature?: number;
@@ -86,6 +89,17 @@ export async function runTask(task: string, opts: RunOptions): Promise<RunResult
         opts.hooks?.onToolResult?.(call, msg, "error");
         messages.push({ role: "tool", toolCallId: call.id, name: call.name, content: msg });
         continue;
+      }
+
+      // Escopo primeiro: um alvo fora do escopo é bloqueado antes de qualquer permissão.
+      if (opts.scope?.active) {
+        const verdict = opts.scope.check(call.name, call.arguments);
+        if (!verdict.allowed) {
+          const msg = `BLOQUEADO (fora do escopo): ${verdict.detail}`;
+          opts.hooks?.onToolResult?.(call, msg, "denied");
+          messages.push({ role: "tool", toolCallId: call.id, name: call.name, content: msg });
+          continue;
+        }
       }
 
       const allowed = await opts.permissions.authorize({ tool, input: call.arguments });

@@ -4,6 +4,8 @@ import {
   Agent,
   PROVIDER_SPECS,
   ProviderError,
+  Recorder,
+  ScopeGuard,
   createProvider,
   keyFromConfig,
   loadConfig,
@@ -15,6 +17,8 @@ import {
 import { banner, statusLine, c } from "../banner.js";
 import { buildPermissions, runAgentTask } from "./run.js";
 import { toolsCommand } from "./tools.js";
+import { reportCommand } from "./report.js";
+import { sessionsCommand } from "./sessions.js";
 
 export interface ChatFlags {
   provider?: string;
@@ -72,7 +76,10 @@ const HELP = [
   ["/models [filtro]", "lista os modelos do provider (sem sair)"],
   ["/model <id>", "troca o modelo mantendo a conversa"],
   ["/provider <id> [modelo]", "troca de provider mantendo a conversa"],
-  ["/run <tarefa>", "executa uma tarefa autônoma com ferramentas"],
+  ["/run <tarefa>", "executa uma tarefa autônoma (grava a sessão)"],
+  ["/scope <hosts>", "define o escopo autorizado do /run (ou limpa se vazio)"],
+  ["/report [id]", "gera relatório/PoC da última sessão (ou de <id>)"],
+  ["/sessions", "lista as sessões gravadas"],
   ["/tools", "lista as ferramentas e permissões"],
   ["/reset", "limpa o contexto da conversa"],
   ["/clear", "limpa a tela"],
@@ -140,6 +147,7 @@ export async function chatCommand(prompt: string | undefined, flags: ChatFlags):
   console.log(c.dim("Digite ") + c.cyan("/help") + c.dim(" para os comandos, ou fale normalmente.\n"));
 
   const rl = createInterface({ input: stdin, output: stdout });
+  let scope: string[] = [];
   try {
     while (true) {
       const input = (await rl.question(c.violet("você › "))).trim();
@@ -199,17 +207,39 @@ export async function chatCommand(prompt: string | undefined, flags: ChatFlags):
               );
             }
           }
+        } else if (cmd === "scope") {
+          scope = arg.split(/[\s,]+/).filter(Boolean);
+          console.log(
+            scope.length
+              ? c.gold(`escopo: ${scope.join(", ")}`) + c.dim("  (aplicado ao /run)\n")
+              : c.dim("escopo limpo — /run sem restrição de alvo\n"),
+          );
+        } else if (cmd === "sessions") {
+          sessionsCommand();
+          console.log("");
+        } else if (cmd === "report") {
+          await reportCommand(arg || undefined, {});
+          console.log("");
         } else if (cmd === "run") {
           if (!arg) {
             console.log(c.dim("uso: /run <descrição da tarefa>\n"));
           } else {
             const permissions = buildPermissions(resolvePolicy(loadConfig().permissions), { rl });
+            const guard = scope.length ? new ScopeGuard(scope) : undefined;
+            const recorder = new Recorder({
+              provider: ctx.providerId,
+              model: ctx.model,
+              cwd: process.cwd(),
+              scope,
+            });
             try {
               await runAgentTask(arg, {
                 provider: ctx.provider,
                 model: ctx.model,
                 cwd: process.cwd(),
                 permissions,
+                scope: guard,
+                recorder,
               });
               console.log("");
             } catch (err) {

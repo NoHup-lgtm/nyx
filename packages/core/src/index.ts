@@ -34,6 +34,24 @@ export {
   type PermissionRequest,
   type Confirmer,
 } from "./tools/permissions.js";
+export { ScopeGuard } from "./tools/scope.js";
+
+export {
+  Recorder,
+  type RecordedSession,
+  type RecordedEvent,
+  type ToolStatus,
+} from "./recorder/session.js";
+export {
+  saveSession,
+  loadSession,
+  listSessions,
+  latestSession,
+  saveReport,
+  SESSIONS_DIR,
+  REPORTS_DIR,
+  type SessionSummary,
+} from "./recorder/store.js";
 
 export {
   loadConfig,

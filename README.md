@@ -15,9 +15,14 @@ Autônomo · open-source · provider-agnostic — use *qualquer* API key.
 
 ## Por que Nyx
 
-A maioria das ferramentas de agente te prende a um provider. O Nyx faz o contrário:
-uma camada única de providers onde **trocar de modelo é trocar uma flag**. Levou uma
-chave? Já roda.
+**O agente autônomo *auditável* para segurança.** O Nyx grava cada passo que dá
+(flight recorder), respeita o **escopo** que você autoriza e transforma uma sessão de
+recon/pentest numa **PoC/relatório pronto** — com evidência real, não alucinada.
+É o que falta nos outros agentes pra você confiar em soltá-lo num bug bounty. →
+[veja abaixo](#-bug-bounty-recon--relatório-com-evidência-real).
+
+E como base: uma camada única de providers onde **trocar de modelo é trocar uma
+flag** (OpenAI, OpenRouter, NVIDIA, Anthropic, Ollama). Levou uma chave? Já roda.
 
 ```bash
 nyx chat -p openrouter -m "anthropic/claude-3.5-sonnet" "resuma este log"
@@ -86,6 +91,31 @@ npm run dev -- run "organize esta pasta" --yes        # aprova tudo em modo 'ask
 
 Permissões padrão (seguras): leitura e rede liberadas; `shell` e `write_file`
 pedem confirmação. Ajuste em `~/.nyx/config.json` (campo `permissions`) ou por flag.
+
+### 🎯 Bug bounty: recon → relatório com evidência real
+
+Este é o diferencial do Nyx. Ele **grava cada passo** (flight recorder), **respeita
+o escopo** do programa e no fim **gera o relatório/PoC** — com os comandos e
+respostas *reais* que ele executou, não um repro alucinado.
+
+```bash
+# caça dentro do escopo (fora dele o agente NÃO toca — nada de ban)
+nyx run "faça recon e teste XSS/SQLi no alvo" --scope "acme.com,*.acme.com"
+
+# lista o que foi gravado
+nyx sessions
+
+# gera a submission pronta (título, CVSS, passos, PoC, impacto, remediação)
+nyx report            # última sessão
+nyx report <id> -l pt # sessão específica, em português
+```
+
+O relatório sai em Markdown com um **anexo "Flight Recorder"**: a evidência bruta
+(cada comando + saída real), pronta pro triager reproduzir. Se a sessão não provar
+uma vuln, o Nyx diz isso em vez de inventar um achado.
+
+**Escopo (`--scope`)** vale ouro pra bug bounty: se o modelo tentar tocar um host
+fora da lista, a ação é **bloqueada antes de rodar** (`http_fetch` e `shell`).
 
 Depois de `npm run build`, o binário `nyx` fica disponível (`npm link` ou instalação global).
 

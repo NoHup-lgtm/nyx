@@ -5,6 +5,8 @@ import { Command } from "commander";
 import { chatCommand, type ChatFlags } from "./commands/chat.js";
 import { runCommand, type RunFlags } from "./commands/run.js";
 import { modelsCommand, type ModelsFlags } from "./commands/models.js";
+import { reportCommand, type ReportFlags } from "./commands/report.js";
+import { sessionsCommand } from "./commands/sessions.js";
 import { homeCommand } from "./commands/home.js";
 import { runSetup } from "./commands/setup.js";
 import { providersCommand } from "./commands/providers.js";
@@ -60,6 +62,8 @@ program
   .option("-y, --yes", "aprova automaticamente as tools em modo 'ask' (respeita 'deny')")
   .option("--allow <tools>", "libera tools (nomes separados por vírgula, ou 'all')")
   .option("--deny <tools>", "bloqueia tools (nomes separados por vírgula, ou 'all')")
+  .option("--scope <hosts>", "restringe a alvos autorizados (hosts/domínios separados por vírgula)")
+  .option("--no-record", "não grava a sessão (por padrão grava para gerar relatório depois)")
   .action((task: string, flags: RunFlags) => runCommand(task, flags));
 
 program
@@ -70,6 +74,22 @@ program
   .option("-k, --api-key <key>", "chave de API explícita")
   .option("-b, --base-url <url>", "endpoint custom")
   .action((filter: string | undefined, flags: ModelsFlags) => modelsCommand(filter, flags));
+
+program
+  .command("report")
+  .description("Gera um relatório/PoC de bug bounty a partir de uma sessão gravada.")
+  .argument("[sessionId]", "id da sessão (padrão: a mais recente)")
+  .option("-p, --provider <id>", "provider a usar na redação")
+  .option("-m, --model <model>", "modelo a usar na redação")
+  .option("-k, --api-key <key>", "chave de API explícita")
+  .option("-b, --base-url <url>", "endpoint custom")
+  .option("-l, --lang <code>", "idioma do relatório (padrão: en)")
+  .action((sessionId: string | undefined, flags: ReportFlags) => reportCommand(sessionId, flags));
+
+program
+  .command("sessions")
+  .description("Lista as sessões gravadas (flight recorder).")
+  .action(() => sessionsCommand());
 
 program
   .command("tools")

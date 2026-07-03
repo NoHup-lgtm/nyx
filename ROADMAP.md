@@ -19,9 +19,14 @@ Ordem sugerida. Cada fase entrega algo usável de ponta a ponta.
 - [x] Tools base: shell, read_file, write_file, list_dir, http_fetch
 - [x] Sistema de permissões/allowlist por tool (allow/ask/deny) — `nyx tools`, flags `--allow/--deny/--yes`
 - [x] CLI: `nyx run <tarefa>` (autônomo) e `nyx tools`
+- [x] **Flight recorder**: grava cada passo (comandos + saídas reais) por sessão
+- [x] **Escopo (scope-aware)**: `--scope` bloqueia alvos fora do autorizado (http_fetch + shell)
+- [x] **`nyx report`**: gera PoC/relatório de bug bounty com evidência real da sessão
+- [x] `nyx sessions` + slash commands no REPL (/run /scope /report /sessions)
 - [ ] Tool de busca web
 - [ ] Streaming da resposta final durante o loop
-- [ ] Sessões e memória persistente
+- [ ] Assinatura criptográfica do flight recorder (cadeia de custódia)
+- [ ] Templates de relatório por plataforma (HackerOne/Bugcrowd/Intigriti)
 
 ## Fase 2 — Multi-superfície
 - [ ] Desktop com **Tauri** (reusa o `@nyx/core`)

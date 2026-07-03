@@ -4,12 +4,15 @@ import {
   BUILTIN_TOOLS,
   PermissionManager,
   ProviderError,
+  Recorder,
+  ScopeGuard,
   createProvider,
   loadConfig,
   keyFromConfig,
   resolvePolicy,
   resolveModel,
   runTask,
+  saveSession,
   type Confirmer,
   type Decision,
   type PermissionPolicy,
@@ -17,6 +20,11 @@ import {
   type RunHooks,
 } from "@nyx/core";
 import { banner, c } from "../banner.js";
+
+/** Divide uma lista separada por vírgula em itens limpos. */
+function splitList(v: string | undefined): string[] {
+  return (v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+}
 
 export interface RunFlags {
   provider?: string;
@@ -29,6 +37,10 @@ export interface RunFlags {
   yes?: boolean;
   allow?: string;
   deny?: string;
+  /** Escopo autorizado (hosts separados por vírgula). */
+  scope?: string;
+  /** Commander seta `record: false` quando passam --no-record. Padrão: grava. */
+  record?: boolean;
 }
 
 export const SYSTEM_PROMPT =
@@ -89,17 +101,25 @@ export function buildPermissions(
   return new PermissionManager(policy, opts.rl ? makeConfirmer(opts.rl) : undefined);
 }
 
-function renderHooks(): RunHooks {
+/** Hooks que renderizam o progresso e (se houver) alimentam o gravador. */
+function makeHooks(recorder?: Recorder): RunHooks {
   return {
     onStep: (step, max) => console.log(c.dim(`— passo ${step}/${max} —`)),
-    onText: (text) => text.trim() && console.log(c.cyan("nyx › ") + text.trim()),
-    onToolCall: (call) =>
-      console.log(c.violet("  🔧 ") + c.bold(call.name) + c.dim(` ${preview(call.arguments)}`)),
-    onToolResult: (_call, output, status) => {
+    onText: (text) => {
+      if (!text.trim()) return;
+      console.log(c.cyan("nyx › ") + text.trim());
+      recorder?.assistant(text);
+    },
+    onToolCall: (call) => {
+      console.log(c.violet("  🔧 ") + c.bold(call.name) + c.dim(` ${preview(call.arguments)}`));
+      recorder?.toolCall(call);
+    },
+    onToolResult: (call, output, status) => {
       const icon =
         status === "ok" ? c.green("  ✓") : status === "denied" ? c.red("  ⨯") : c.red("  ！");
       const head = output.split("\n").slice(0, 6).join("\n");
       console.log(icon + c.dim(" " + head.replace(/\n/g, "\n     ")));
+      recorder?.toolResult(call, output, status);
     },
   };
 }
@@ -112,26 +132,41 @@ export async function runAgentTask(
     model: string;
     cwd: string;
     permissions: PermissionManager;
+    scope?: ScopeGuard;
+    recorder?: Recorder;
     temperature?: number;
     maxSteps?: number;
   },
-): Promise<void> {
+): Promise<{ sessionId?: string; sessionPath?: string }> {
+  opts.recorder?.task(task);
+
   const result = await runTask(task, {
     provider: opts.provider,
     model: opts.model,
     tools: BUILTIN_TOOLS,
     permissions: opts.permissions,
+    scope: opts.scope,
     cwd: opts.cwd,
     systemPrompt: SYSTEM_PROMPT,
     temperature: opts.temperature,
     maxSteps: opts.maxSteps,
-    hooks: renderHooks(),
+    hooks: makeHooks(opts.recorder),
   });
 
   console.log("\n" + c.bold(c.green("● concluído")) + c.dim(` em ${result.steps} passo(s)`));
   if (result.hitLimit) {
     console.log(c.red("  (limite de passos atingido — a tarefa pode não ter terminado)"));
   }
+
+  if (opts.recorder) {
+    const path = saveSession(opts.recorder.session);
+    console.log(
+      c.dim("  sessão gravada: ") + c.violet(opts.recorder.session.id) +
+        c.dim("  →  gere o relatório com ") + c.cyan(`nyx report`),
+    );
+    return { sessionId: opts.recorder.session.id, sessionPath: path };
+  }
+  return {};
 }
 
 export async function runCommand(task: string, flags: RunFlags): Promise<void> {
@@ -157,6 +192,12 @@ export async function runCommand(task: string, flags: RunFlags): Promise<void> {
   const model = resolveModel(cfg, providerId, flags.model);
   const cwd = flags.cwd ?? process.cwd();
   const policy = policyFromFlags(cfg.permissions ?? {}, flags);
+  const scopeList = splitList(flags.scope);
+  const scope = scopeList.length ? new ScopeGuard(scopeList) : undefined;
+  const recorder =
+    flags.record === false
+      ? undefined
+      : new Recorder({ provider: providerId, model, cwd, scope: scopeList });
 
   const rl = createInterface({ input: stdin, output: stdout });
   const permissions = buildPermissions(policy, { yes: flags.yes, rl });
@@ -166,6 +207,7 @@ export async function runCommand(task: string, flags: RunFlags): Promise<void> {
     c.dim("provider ") + c.violet(providerId) + c.dim("  ·  modelo ") + c.cyan(model) +
       c.dim("  ·  cwd ") + c.dim(cwd),
   );
+  if (scope) console.log(c.dim("escopo: ") + c.gold(scopeList.join(", ")));
   console.log(c.bold("\n▶ tarefa: ") + task + "\n");
 
   try {
@@ -174,6 +216,8 @@ export async function runCommand(task: string, flags: RunFlags): Promise<void> {
       model,
       cwd,
       permissions,
+      scope,
+      recorder,
       temperature: flags.temperature ? Number(flags.temperature) : undefined,
       maxSteps: flags.maxSteps ? Number(flags.maxSteps) : undefined,
     });
