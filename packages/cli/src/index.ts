@@ -57,7 +57,7 @@ program
   .option("-k, --api-key <key>", "chave de API explícita")
   .option("-b, --base-url <url>", "endpoint custom")
   .option("-t, --temperature <n>", "temperatura de amostragem")
-  .option("--max-steps <n>", "máximo de passos do loop (padrão 12)")
+  .option("--max-steps <n>", "máximo de passos do loop (padrão 25)")
   .option("--cwd <dir>", "diretório de trabalho para as tools")
   .option("-y, --yes", "aprova automaticamente as tools em modo 'ask' (respeita 'deny')")
   .option("--allow <tools>", "libera tools (nomes separados por vírgula, ou 'all')")

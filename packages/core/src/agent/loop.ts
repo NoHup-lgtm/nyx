@@ -45,7 +45,7 @@ export interface RunResult {
  * resposta final ou atingir `maxSteps`.
  */
 export async function runTask(task: string, opts: RunOptions): Promise<RunResult> {
-  const maxSteps = opts.maxSteps ?? 12;
+  const maxSteps = opts.maxSteps ?? 25;
   const toolsByName = new Map(opts.tools.map((t) => [t.name, t]));
   const schemas = opts.tools.map(toToolSchema);
 
