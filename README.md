@@ -25,32 +25,45 @@ nyx chat -p nvidia     -m "meta/llama-3.1-70b-instruct" "explique este payload"
 nyx chat -p ollama     -m "llama3.1"                     "roda 100% local, sem nuvem"
 ```
 
-## Instalação (dev)
+## Instalação
 
-Requisitos: **Node 20+**. pnpm ou npm (funciona com os dois).
+Requisito: **Node 20+**.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/SEU-USUARIO/nyx/main/install.sh | sh
+```
+
+O instalador clona, compila e coloca o comando `nyx` no seu PATH.
+
+## Começando — só 2 comandos
+
+```bash
+nyx setup   # escolhe provider, cola a API key e o modelo (wizard interativo)
+nyx         # abre a interface e começa a conversar
+```
+
+É isso. `nyx setup` guarda tudo em `~/.nyx/config.json` (arquivo com permissão
+`600`). Rode de novo a qualquer momento pra adicionar outro provider, trocar a
+chave ou mudar o modelo.
+
+<details>
+<summary>Comandos extras</summary>
+
+```bash
+nyx chat -p openai -m gpt-4o-mini "quem é você?"   # pergunta única
+nyx providers                                       # status dos providers
+nyx tools                                           # ferramentas e permissões
+nyx config show                                     # ver a config
+```
+</details>
+
+### Rodando do código (dev / contribuindo)
 
 ```bash
 cd nyx
-npm install          # ou: pnpm install
-cp .env.example .env # preencha só a(s) chave(s) que você tem
-npm run dev -- providers
-```
-
-## Uso rápido
-
-```bash
-# lista providers e mostra quais já têm chave no ambiente
-npm run dev -- providers
-
-# conversa interativa (REPL) com o provider padrão
-npm run dev -- chat
-
-# pergunta única
-npm run dev -- chat -p openai -m gpt-4o-mini "quem é você?"
-
-# define padrões pra não repetir flags
-npm run dev -- config set defaultProvider openrouter
-npm run dev -- config set defaultModel "openai/gpt-4o-mini"
+npm install
+npm run dev -- setup     # equivale a `nyx setup` sem instalar
+npm run dev -- run "cheque o git status e resuma"
 ```
 
 ### Modo autônomo (agente com ferramentas)

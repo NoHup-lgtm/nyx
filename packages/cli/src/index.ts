@@ -2,9 +2,10 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { Command } from "commander";
-import { banner } from "./banner.js";
 import { chatCommand, type ChatFlags } from "./commands/chat.js";
 import { runCommand, type RunFlags } from "./commands/run.js";
+import { homeCommand } from "./commands/home.js";
+import { runSetup } from "./commands/setup.js";
 import { providersCommand } from "./commands/providers.js";
 import { toolsCommand } from "./commands/tools.js";
 import { configSet, configShow } from "./commands/config.js";
@@ -25,6 +26,11 @@ program
   .name("nyx")
   .description("Nyx — agente de IA autônomo e provider-agnostic.")
   .version("0.1.0");
+
+program
+  .command("setup")
+  .description("Configura providers, chaves de API e modelos (wizard interativo).")
+  .action(() => runSetup());
 
 program
   .command("chat")
@@ -75,9 +81,9 @@ config
   .description("Define defaultProvider, defaultModel ou systemPrompt.")
   .action((key: string, value: string) => configSet(key, value));
 
+// `nyx` sem argumentos → interface interativa (home). Com argumentos → comandos.
 if (process.argv.length <= 2) {
-  process.stdout.write(banner());
-  program.help();
+  homeCommand();
+} else {
+  program.parseAsync(process.argv);
 }
-
-program.parseAsync(process.argv);

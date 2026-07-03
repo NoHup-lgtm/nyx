@@ -39,6 +39,7 @@ export {
   loadConfig,
   saveConfig,
   resolveModel,
+  keyFromConfig,
   CONFIG_PATH,
   CONFIG_DIR,
   type NyxConfig,

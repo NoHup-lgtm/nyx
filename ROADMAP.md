@@ -9,7 +9,9 @@ Ordem sugerida. Cada fase entrega algo usável de ponta a ponta.
 - [x] Streaming de resposta (SSE) sem dependências pesadas
 - [x] CLI: `chat` (REPL + one-shot), `providers`, `config`
 - [x] Config em `~/.nyx/config.json` + carregamento de `.env`
-- [x] Identidade visual (logo, paleta, banner)
+- [x] Identidade visual (logo, paleta, banner ASCII grande)
+- [x] UX de 2 comandos: `nyx` (interface interativa) e `nyx setup` (wizard de chaves)
+- [x] Instalador via `curl` (install.sh) com launcher no PATH
 
 ## Fase 1 — Agente de verdade 🚧 (em andamento)
 - [x] Abstração de **tools / function-calling** unificada entre providers (OpenAI + Anthropic)

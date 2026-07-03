@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { PROVIDER_SPECS } from "../providers/registry.js";
@@ -15,6 +15,8 @@ export interface NyxConfig {
   providers?: Record<string, { baseUrl?: string }>;
   /** Política de permissões das tools (mesclada com os padrões seguros). */
   permissions?: Partial<PermissionPolicy>;
+  /** Chaves de API por provider, salvas pelo `nyx setup` (arquivo com modo 600). */
+  keys?: Record<string, string>;
 }
 
 export const CONFIG_DIR = join(homedir(), ".nyx");
@@ -47,7 +49,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): NyxConfig {
 
 export function saveConfig(cfg: NyxConfig): void {
   mkdirSync(dirname(CONFIG_PATH), { recursive: true });
-  writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2) + "\n", "utf8");
+  // Modo 600: o arquivo pode conter chaves de API.
+  writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2) + "\n", { encoding: "utf8", mode: 0o600 });
+  try {
+    chmodSync(CONFIG_PATH, 0o600);
+  } catch {
+    /* fs sem suporte a chmod (ex.: Windows) — ignora */
+  }
+}
+
+/** Resolve a chave de um provider: config (nyx setup) tem prioridade sobre o ambiente. */
+export function keyFromConfig(cfg: NyxConfig, providerId: string): string | undefined {
+  return cfg.keys?.[providerId];
 }
 
 /** Resolve qual modelo usar: flag > config > default do provider. */

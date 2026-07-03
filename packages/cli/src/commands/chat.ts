@@ -1,6 +1,6 @@
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
-import { Agent, createProvider, loadConfig, resolveModel, ProviderError } from "@nyx/core";
+import { Agent, createProvider, loadConfig, resolveModel, keyFromConfig, ProviderError } from "@nyx/core";
 import { banner, c } from "../banner.js";
 
 export interface ChatFlags {
@@ -17,7 +17,7 @@ function buildAgent(flags: ChatFlags): { agent: Agent; providerId: string; model
   const cfg = loadConfig();
   const providerId = flags.provider ?? cfg.defaultProvider;
   const provider = createProvider(providerId, {
-    apiKey: flags.apiKey,
+    apiKey: flags.apiKey ?? keyFromConfig(cfg, providerId),
     baseUrl: flags.baseUrl,
   });
   const model = resolveModel(cfg, providerId, flags.model);

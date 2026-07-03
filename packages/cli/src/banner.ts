@@ -10,13 +10,40 @@ export const c = {
   bold: (s: string) => `\x1b[1m${s}\x1b[0m`,
   red: (s: string) => `\x1b[38;5;203m${s}\x1b[0m`,
   green: (s: string) => `\x1b[38;5;114m${s}\x1b[0m`,
+  gold: (s: string) => `\x1b[38;5;179m${s}\x1b[0m`,
 };
 
+const ART = [
+  "  ███╗   ██╗ ██╗   ██╗ ██╗  ██╗",
+  "  ████╗  ██║ ╚██╗ ██╔╝ ╚██╗██╔╝",
+  "  ██╔██╗ ██║  ╚████╔╝   ╚███╔╝ ",
+  "  ██║╚██╗██║   ╚██╔╝    ██╔██╗ ",
+  "  ██║ ╚████║    ██║    ██╔╝ ██╗",
+  "  ╚═╝  ╚═══╝    ╚═╝    ╚═╝  ╚═╝",
+];
+
+/** Logo grande em ASCII com a tagline. */
 export function banner(): string {
-  return [
-    violet("   ╭─╮ ╷ ╷ ╷ ╷"),
-    violet("   │ │ │╲│  ╳ "),
-    violet("   ╰─╯ ╵ ╵ ╵ ╵ ") + dim("· o agente que enxerga no escuro"),
-    "",
-  ].join("\n");
+  const art = ART.map((line) => violet(line)).join("\n");
+  return (
+    "\n" +
+    art +
+    "\n" +
+    dim("        o agente que enxerga no escuro") +
+    "\n"
+  );
+}
+
+/** Linha de status compacta (provider · modelo · cwd). */
+export function statusLine(
+  provider: string,
+  model: string,
+  extra?: string,
+): string {
+  const parts = [
+    dim("provider ") + violet(provider),
+    dim("modelo ") + cyan(model || "—"),
+  ];
+  if (extra) parts.push(dim(extra));
+  return parts.join(dim("  ·  "));
 }

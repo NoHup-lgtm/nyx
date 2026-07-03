@@ -6,6 +6,7 @@ import {
   ProviderError,
   createProvider,
   loadConfig,
+  keyFromConfig,
   resolvePolicy,
   resolveModel,
   runTask,
@@ -58,7 +59,10 @@ export async function runCommand(task: string, flags: RunFlags): Promise<void> {
 
   let provider;
   try {
-    provider = createProvider(providerId, { apiKey: flags.apiKey, baseUrl: flags.baseUrl });
+    provider = createProvider(providerId, {
+      apiKey: flags.apiKey ?? keyFromConfig(cfg, providerId),
+      baseUrl: flags.baseUrl,
+    });
   } catch (err) {
     if (err instanceof ProviderError) {
       console.error(c.red(`✗ ${err.message}`));
