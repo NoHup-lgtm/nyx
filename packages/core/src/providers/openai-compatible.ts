@@ -9,6 +9,7 @@ import {
   type ToolCall,
 } from "./types.js";
 import { parseSSE } from "./sse.js";
+import { safeFetch } from "./http.js";
 
 export interface OpenAICompatibleConfig {
   id: string;
@@ -89,16 +90,21 @@ export class OpenAICompatibleProvider implements Provider {
       }));
     }
 
-    const res = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: "POST",
-      signal: opts.signal,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`,
-        ...this.extraHeaders,
+    const res = await safeFetch(
+      `${this.baseUrl}/chat/completions`,
+      {
+        method: "POST",
+        signal: opts.signal,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+          ...this.extraHeaders,
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    });
+      this.id,
+      this.label,
+    );
 
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
@@ -157,9 +163,15 @@ export class OpenAICompatibleProvider implements Provider {
   }
 
   async listModels(): Promise<string[]> {
-    const res = await fetch(`${this.baseUrl}/models`, {
-      headers: { Authorization: `Bearer ${this.apiKey}`, ...this.extraHeaders },
-    });
+    const res = await safeFetch(
+      `${this.baseUrl}/models`,
+      {
+        headers: { Authorization: `Bearer ${this.apiKey}`, ...this.extraHeaders },
+        signal: AbortSignal.timeout(20_000),
+      },
+      this.id,
+      this.label,
+    );
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
       throw new ProviderError(

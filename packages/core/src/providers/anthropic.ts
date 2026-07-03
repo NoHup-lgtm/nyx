@@ -9,6 +9,7 @@ import {
   type ToolCall,
 } from "./types.js";
 import { parseSSE } from "./sse.js";
+import { safeFetch } from "./http.js";
 
 export interface AnthropicConfig {
   id: string;
@@ -110,16 +111,21 @@ export class AnthropicProvider implements Provider {
       }));
     }
 
-    const res = await fetch(`${this.baseUrl}/v1/messages`, {
-      method: "POST",
-      signal: opts.signal,
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": this.apiKey,
-        "anthropic-version": this.version,
+    const res = await safeFetch(
+      `${this.baseUrl}/v1/messages`,
+      {
+        method: "POST",
+        signal: opts.signal,
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": this.apiKey,
+          "anthropic-version": this.version,
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    });
+      this.id,
+      this.label,
+    );
 
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
@@ -180,9 +186,15 @@ export class AnthropicProvider implements Provider {
   }
 
   async listModels(): Promise<string[]> {
-    const res = await fetch(`${this.baseUrl}/v1/models`, {
-      headers: { "x-api-key": this.apiKey, "anthropic-version": this.version },
-    });
+    const res = await safeFetch(
+      `${this.baseUrl}/v1/models`,
+      {
+        headers: { "x-api-key": this.apiKey, "anthropic-version": this.version },
+        signal: AbortSignal.timeout(20_000),
+      },
+      this.id,
+      this.label,
+    );
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
       throw new ProviderError(
