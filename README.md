@@ -30,7 +30,7 @@ nyx chat -p ollama     -m "llama3.1"                     "roda 100% local, sem n
 Requisito: **Node 20+**.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/SEU-USUARIO/nyx/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/NoHup-lgtm/nyx/main/install.sh | sh
 ```
 
 O instalador clona, compila e coloca o comando `nyx` no seu PATH.
@@ -130,8 +130,9 @@ novo provider OpenAI-compatible é uma entrada em `providers/registry.ts`.
 
 Veja [ROADMAP.md](ROADMAP.md). Resumo:
 
-- [x] Core multi-provider + CLI (`chat`, `providers`, `config`)
-- [ ] Tools / function-calling + loop autônomo
+- [x] Core multi-provider + CLI (`nyx`, `setup`, `chat`, `run`, `tools`)
+- [x] Tools / function-calling + loop autônomo com permissões
+- [x] Instalação via `curl` + UX de 2 comandos
 - [ ] Memória persistente e sessões
 - [ ] Desktop (Tauri) e mobile (Expo)
 - [ ] Bots: Discord, Telegram, WhatsApp

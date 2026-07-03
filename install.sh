@@ -1,7 +1,7 @@
 #!/bin/sh
 # ─── Instalador do Nyx ───────────────────────────────────────────────────────
 # Uso:
-#   curl -fsSL https://raw.githubusercontent.com/SEU-USUARIO/nyx/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/NoHup-lgtm/nyx/main/install.sh | sh
 #
 # Variáveis opcionais:
 #   NYX_REPO   URL do repositório git (padrão: o oficial)
@@ -9,7 +9,7 @@
 #   BIN_DIR    onde colocar o launcher `nyx` (padrão: ~/.local/bin)
 set -e
 
-REPO="${NYX_REPO:-https://github.com/SEU-USUARIO/nyx.git}"
+REPO="${NYX_REPO:-https://github.com/NoHup-lgtm/nyx.git}"
 NYX_HOME="${NYX_HOME:-$HOME/.nyx/app}"
 BIN_DIR="${BIN_DIR:-$HOME/.local/bin}"
 
