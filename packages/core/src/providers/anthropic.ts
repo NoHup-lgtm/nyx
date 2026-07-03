@@ -178,4 +178,21 @@ export class AnthropicProvider implements Provider {
     }
     yield { delta: "", done: true };
   }
+
+  async listModels(): Promise<string[]> {
+    const res = await fetch(`${this.baseUrl}/v1/models`, {
+      headers: { "x-api-key": this.apiKey, "anthropic-version": this.version },
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new ProviderError(
+        `${this.label} respondeu ${res.status}: ${detail.slice(0, 300)}`,
+        this.id,
+        res.status,
+      );
+    }
+    const json = (await res.json()) as any;
+    const ids: string[] = (json.data ?? []).map((m: any) => m.id).filter(Boolean);
+    return ids.sort((a, b) => a.localeCompare(b));
+  }
 }

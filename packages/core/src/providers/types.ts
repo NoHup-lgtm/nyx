@@ -70,6 +70,8 @@ export interface Provider {
   readonly label: string;
   chat(opts: ChatOptions): Promise<ChatResult>;
   stream(opts: ChatOptions): AsyncIterable<ChatChunk>;
+  /** Lista os IDs de modelo disponíveis, se o provider expuser isso. */
+  listModels?(): Promise<string[]>;
 }
 
 export class ProviderError extends Error {

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { chatCommand, type ChatFlags } from "./commands/chat.js";
 import { runCommand, type RunFlags } from "./commands/run.js";
+import { modelsCommand, type ModelsFlags } from "./commands/models.js";
 import { homeCommand } from "./commands/home.js";
 import { runSetup } from "./commands/setup.js";
 import { providersCommand } from "./commands/providers.js";
@@ -60,6 +61,15 @@ program
   .option("--allow <tools>", "libera tools (nomes separados por vírgula, ou 'all')")
   .option("--deny <tools>", "bloqueia tools (nomes separados por vírgula, ou 'all')")
   .action((task: string, flags: RunFlags) => runCommand(task, flags));
+
+program
+  .command("models")
+  .description("Lista os modelos disponíveis no provider (com filtro opcional).")
+  .argument("[filter]", "filtra por substring (ex.: llama, glm, gpt)")
+  .option("-p, --provider <id>", "provider a consultar")
+  .option("-k, --api-key <key>", "chave de API explícita")
+  .option("-b, --base-url <url>", "endpoint custom")
+  .action((filter: string | undefined, flags: ModelsFlags) => modelsCommand(filter, flags));
 
 program
   .command("tools")

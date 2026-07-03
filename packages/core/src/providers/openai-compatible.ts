@@ -155,6 +155,23 @@ export class OpenAICompatibleProvider implements Provider {
     }
     yield { delta: "", done: true };
   }
+
+  async listModels(): Promise<string[]> {
+    const res = await fetch(`${this.baseUrl}/models`, {
+      headers: { Authorization: `Bearer ${this.apiKey}`, ...this.extraHeaders },
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new ProviderError(
+        `${this.label} respondeu ${res.status}: ${detail.slice(0, 300)}`,
+        this.id,
+        res.status,
+      );
+    }
+    const json = (await res.json()) as any;
+    const ids: string[] = (json.data ?? []).map((m: any) => m.id).filter(Boolean);
+    return ids.sort((a, b) => a.localeCompare(b));
+  }
 }
 
 function safeParseArgs(raw: unknown): Record<string, unknown> {

@@ -74,7 +74,9 @@ export async function chatCommand(prompt: string | undefined, flags: ChatFlags):
   console.log(
     c.dim(`provider `) + c.violet(ctx.providerId) + c.dim(`  ·  modelo `) + c.cyan(ctx.model),
   );
-  console.log(c.dim(`Digite sua mensagem. /reset limpa o contexto, /sair encerra.\n`));
+  console.log(
+    c.dim(`Digite sua mensagem. /info mostra provider+modelo, /reset limpa o contexto, /sair encerra.\n`),
+  );
 
   const rl = createInterface({ input: stdin, output: stdout });
   try {
@@ -85,6 +87,14 @@ export async function chatCommand(prompt: string | undefined, flags: ChatFlags):
       if (input === "/reset") {
         ctx.agent.reset();
         console.log(c.dim("contexto limpo.\n"));
+        continue;
+      }
+      if (input === "/info" || input === "/model") {
+        console.log(
+          c.dim("provider ") + c.violet(ctx.providerId) +
+            c.dim("  ·  modelo ") + c.cyan(ctx.model) +
+            c.dim("  (fonte da verdade — não pergunte ao modelo, ele chuta)\n"),
+        );
         continue;
       }
       stdout.write(c.cyan("nyx › "));
